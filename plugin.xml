@@ -92,7 +92,7 @@
         </config-file>
 
 	<!-- background-geolocation -->
-        <preference name="LICENSE_KEY" default="[CHANGEME] LICESNSE KEY" />
+        <preference name="LICENSE_KEY" default="LICESNSE KEY" />
 		  <config-file parent="/manifest/application" target="app/src/main/AndroidManifest.xml">
 			  <meta-data
 				android:name="com.transistorsoft.locationmanager.license_key"
