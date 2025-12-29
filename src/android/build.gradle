@@ -30,7 +30,6 @@ def libDir = "${projectDir}/libs"
 File capacitorConfig = new File("${projectDir}/../../capacitor.config.json")
 
 if (!capacitorConfig.exists()) {
-  // Capacitor V3?
   capacitorConfig = new File("${projectDir}/../../capacitor.config.ts")
 }
 if (!capacitorConfig.exists()) {
@@ -39,16 +38,15 @@ if (!capacitorConfig.exists()) {
 
 // Is this a Capacitor app?
 if (capacitorConfig.exists()) {
+
   playServicesLocationVersion = safeExtGet('playServicesLocationVersion', DEFAULT_PLAY_SERVICES_LOCATION_VERSION)
   hmsLocationVersion = safeExtGet('hmsLocationVersion', DEFAULT_HMS_LOCATION_VERSION)
 
-  // Capacitor app
   def nodeModulesDir = (project.hasProperty("nodeModulesDirectory")) ? project.property("nodeModulesDirectory") : "../../node_modules"
   libDir = "${projectDir}/${nodeModulesDir}"
 
   println("${TAG} Capacitor detected")
 
-  // Determine which version of background-geolocation (public or private) by stat folder
   File pluginFolder = new File("${libDir}/${CORDOVA_BACKGROUND_GEOLOCATION}")
 
   if (pluginFolder.exists() && pluginFolder.isDirectory()) {
@@ -62,7 +60,6 @@ if (capacitorConfig.exists()) {
     }
   }
 
-  // Now we know which version of plugin.
   libDir = "${libDir}/${pluginName}/src/android/libs"
 
 } else {
@@ -71,6 +68,7 @@ if (capacitorConfig.exists()) {
   def config = (new JsonSlurper()).parseText(packageJson.text)
   def plugins = config["cordova"]["plugins"]
   def pluginConfig = null
+
   if (plugins[CORDOVA_BACKGROUND_GEOLOCATION]) {
     pluginName = CORDOVA_BACKGROUND_GEOLOCATION
     pluginConfig = plugins[CORDOVA_BACKGROUND_GEOLOCATION]
@@ -78,6 +76,7 @@ if (capacitorConfig.exists()) {
     pluginName = CORDOVA_BACKGROUND_GEOLOCATION_LT
     pluginConfig = plugins[CORDOVA_BACKGROUND_GEOLOCATION_LT]
   }
+
   if (pluginConfig != null) {
     playServicesLocationVersion = pluginConfig["GOOGLE_API_VERSION"]
     if (pluginConfig["HMS_LOCATION_VERSION"]) {
@@ -85,11 +84,8 @@ if (capacitorConfig.exists()) {
     }
   } else {
     println("* ERROR: cordova-background-geolocation failed to find plugin config from package.json")
-
   }
 
-  // Capacitor does not have the scope here to use android.applicationVariants.
-  // Capacitor users must manually include app.gradle in their app's gradle file.
   cdvPluginPostBuildExtras.add({
     android {
       purgeBackgroundGeolocationDebugResources(applicationVariants)
@@ -97,17 +93,11 @@ if (capacitorConfig.exists()) {
   })
 }
 
-
 println("${TAG} libDir: ${libDir}")
 
-// Add custom maven url tslocationmanager.aar
 repositories {
-  maven {
-    url libDir
-  }
+  maven { url libDir }
 }
-
-println("$TAG playServicesLocationVersion: ${playServicesLocationVersion}")
 
 rootProject.allprojects {
     repositories {
@@ -118,7 +108,6 @@ rootProject.allprojects {
 }
 
 dependencies {
-  // Load tslocationmanager.aar
 
   def locationMajorVersion = playServicesLocationVersion.split('\\.')[0] as int
   if (locationMajorVersion >= 21) {
@@ -128,28 +117,26 @@ dependencies {
   }
 
   implementation "com.google.android.gms:play-services-location:$playServicesLocationVersion"
-  // HMS location
+
   implementation("com.huawei.hms:location:$hmsLocationVersion") {
     exclude(group: "com.huawei.hms", module: 'hianalytics')
   }
 
   implementation "androidx.localbroadcastmanager:localbroadcastmanager:1.0.+"
+
   def work_version = "2.8.1"
   implementation "androidx.work:work-runtime:$work_version"
   implementation "androidx.concurrent:concurrent-futures:1.1.0"
-
 }
 
 /**
-* Background Geolocation's aar includes about 1.5M of mp3 sound-files for its debugging sound FX.
-* This method strips those mp3s out in RELEASE builds.
-*/
-
+ * Remove debug sounds from release builds
+ */
 def purgeBackgroundGeolocationDebugResources(applicationVariants) {
-    if ((ext.has("removeBackgroundGeolocationDebugSoundsInRelease")) && (ext.removeBackgroundGeolocationDebugSoundsInRelease == false)) return
+    if ((ext.has("removeBackgroundGeolocationDebugSoundsInRelease")) &&
+        (ext.removeBackgroundGeolocationDebugSoundsInRelease == false)) return
 
     applicationVariants.all { variant ->
-        // Only Gradle v3.3.0 has this method.  Bail out for older versions of Cordova.
         if (!variant.hasProperty('mergeResourcesProvider')) return
 
         if (variant.buildType.name == "release") {
@@ -159,6 +146,25 @@ def purgeBackgroundGeolocationDebugResources(applicationVariants) {
                     delete(fileTree(dir: outputDir, includes: ["raw_tslocationmanager*"]))
                 }
             }
+        }
+    }
+}
+
+/* ============================================================
+   🔒 FIX CRÍTICO PARA MABS 12
+   Fuerza WorkManager y Kotlin compatibles
+   ============================================================ */
+
+configurations.all {
+
+    resolutionStrategy {
+        force "androidx.work:work-runtime:2.8.1"
+        force "androidx.work:work-runtime-ktx:2.8.1"
+    }
+
+    resolutionStrategy.eachDependency { details ->
+        if (details.requested.group == "org.jetbrains.kotlin") {
+            details.useVersion "1.9.0"
         }
     }
 }
