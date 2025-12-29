@@ -149,22 +149,3 @@ def purgeBackgroundGeolocationDebugResources(applicationVariants) {
         }
     }
 }
-
-/* ============================================================
-   🔒 FIX CRÍTICO PARA MABS 12
-   Fuerza WorkManager y Kotlin compatibles
-   ============================================================ */
-
-configurations.all {
-
-    resolutionStrategy {
-        force "androidx.work:work-runtime:2.8.1"
-        force "androidx.work:work-runtime-ktx:2.8.1"
-    }
-
-    resolutionStrategy.eachDependency { details ->
-        if (details.requested.group == "org.jetbrains.kotlin") {
-            details.useVersion "1.9.0"
-        }
-    }
-}
